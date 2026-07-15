@@ -6,6 +6,8 @@ __pycache__/
 .coverage
 htmlcov/
 .matplotlib/
+.runtime_artifacts/
+.streamlit/secrets.toml
 *.egg-info/
 catboost_info/
 

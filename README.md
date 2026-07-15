@@ -108,6 +108,34 @@ CSV wajib memiliki `Time`, `V1`–`V28`, dan `Amount`; `Class` opsional.
 
 Dashboard memiliki Overview, Investigation Queue, Model & Threshold, Explainability & Monitoring, serta Batch Prediction. Provenance guard menolak artefak threshold yang berasal dari model berbeda.
 
+### Deploy ke Streamlit Community Cloud
+
+Model dan generated reports tetap berada di luar Git. Buat deployment bundle setelah pipeline selesai:
+
+```powershell
+.\.venv\Scripts\python.exe scripts\package_streamlit_artifacts.py
+```
+
+Script menghasilkan `outputs/streamlit_artifacts.zip` beserta SHA-256. Upload ZIP tersebut ke GitHub Release atau object storage, lalu salin direct download URL.
+
+Di [Streamlit Community Cloud](https://share.streamlit.io), buat aplikasi dengan konfigurasi:
+
+```text
+Repository : Salajalaludin/creditcard-detection
+Branch     : main
+Main file  : dashboard/app.py
+Python     : 3.12
+```
+
+Masukkan melalui **Advanced settings → Secrets**:
+
+```toml
+ARTIFACT_URL = "https://github.com/OWNER/REPOSITORY/releases/download/model-v1/streamlit_artifacts.zip"
+ARTIFACT_SHA256 = "SHA256_DARI_PACKAGE_SCRIPT"
+```
+
+Dashboard mengunduh bundle satu kali, membatasi ukuran download, memverifikasi SHA-256, menolak ZIP path traversal, dan mengekstrak file ke `.runtime_artifacts/`. File secret, runtime cache, ZIP, model, dan generated reports tidak masuk repository.
+
 ### Test dan notebook
 
 ```powershell

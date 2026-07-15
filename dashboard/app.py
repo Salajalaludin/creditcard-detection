@@ -3,6 +3,7 @@
 from __future__ import annotations
 
 import json
+import os
 import sys
 from pathlib import Path
 
@@ -14,12 +15,61 @@ import streamlit as st
 PROJECT_ROOT = Path(__file__).resolve().parents[1]
 sys.path.insert(0, str(PROJECT_ROOT / "src"))
 
-from fraud_detection.config import FEATURE_COLUMNS, MODELS_DIR, PREDICTIONS_DIR, REPORTS_DIR, TARGET  # noqa: E402
+# Konfigurasi halaman wajib menjadi perintah Streamlit pertama.
+st.set_page_config(page_title="Fraud Risk Monitor", page_icon="🛡️", layout="wide")
+
+
+def deployment_setting(name: str) -> str:
+    """Baca setting dari environment atau Streamlit Secrets tanpa memaksa file lokal."""
+    # Environment variable memudahkan container deployment di luar Community Cloud.
+    if value := os.getenv(name):
+        return value
+    try:
+        return str(st.secrets.get(name, ""))
+    except FileNotFoundError:
+        return ""
+
+
+# Jika URL deployment tersedia, arahkan seluruh generated artifact ke cache runtime.
+ARTIFACT_URL = deployment_setting("ARTIFACT_URL")
+ARTIFACT_SHA256 = deployment_setting("ARTIFACT_SHA256")
+if ARTIFACT_URL:
+    os.environ.setdefault("FRAUD_ARTIFACT_ROOT", str(PROJECT_ROOT / ".runtime_artifacts"))
+
+from fraud_detection.artifacts import download_artifact_bundle  # noqa: E402
+from fraud_detection.config import ARTIFACT_ROOT, FEATURE_COLUMNS, MODELS_DIR, PREDICTIONS_DIR, REPORTS_DIR, TARGET  # noqa: E402
 from fraud_detection.prediction import load_inference_data  # noqa: E402
 from fraud_detection.risk import score_transactions  # noqa: E402
 
-# Konfigurasi halaman wajib menjadi perintah Streamlit pertama.
-st.set_page_config(page_title="Fraud Risk Monitor", page_icon="🛡️", layout="wide")
+# Kontrak minimal ZIP memastikan aplikasi tidak menerima release yang salah.
+REQUIRED_ARTIFACT_MEMBERS = (
+    "models/fraud_detection_model.joblib",
+    "models/threshold_config.json",
+    "data/predictions/test_risk_scores.csv",
+    "data/predictions/investigation_queue.csv",
+    "reports/threshold_test_metrics.json",
+    "reports/threshold_recommendations.csv",
+    "reports/model_comparison_metrics.csv",
+    "reports/figures/model_comparison_pr_curve.png",
+    "reports/figures/threshold_tradeoff.png",
+    "reports/figures/business_cost_sensitivity.png",
+)
+
+
+@st.cache_resource(show_spinner="Downloading verified model artifacts...")
+def bootstrap_deployment_artifacts() -> str | None:
+    """Unduh artifact satu kali ketika deployment tidak memiliki model lokal."""
+    # Local development langsung memakai file pipeline yang sudah tersedia.
+    if (MODELS_DIR / "fraud_detection_model.joblib").is_file():
+        return None
+    if not ARTIFACT_URL:
+        return None
+    return download_artifact_bundle(
+        ARTIFACT_URL,
+        ARTIFACT_ROOT,
+        expected_sha256=ARTIFACT_SHA256 or None,
+        required_members=REQUIRED_ARTIFACT_MEMBERS,
+    )
 
 
 @st.cache_resource
@@ -183,11 +233,26 @@ def main() -> None:
     st.title("🛡️ Fraud Detection & Transaction Risk Scoring")
     st.caption("Human-in-the-loop decision support for transaction investigation")
 
+    # Bootstrap berjalan sebelum pengecekan required files pada deployment cloud.
+    try:
+        downloaded_checksum = bootstrap_deployment_artifacts()
+    except Exception as error:
+        st.error(f"Deployment artifact gagal dimuat: {error}")
+        st.info("Periksa ARTIFACT_URL dan ARTIFACT_SHA256 pada Streamlit Secrets.")
+        st.stop()
+    if downloaded_checksum:
+        st.caption(f"Verified deployment artifact: `{downloaded_checksum[:12]}…`")
+
     # Fail fast memberikan instruksi yang jelas jika pipeline belum selesai.
     required = [MODELS_DIR / "fraud_detection_model.joblib", MODELS_DIR / "threshold_config.json", PREDICTIONS_DIR / "test_risk_scores.csv", PREDICTIONS_DIR / "investigation_queue.csv", REPORTS_DIR / "threshold_test_metrics.json", REPORTS_DIR / "threshold_recommendations.csv"]
     missing = [str(path) for path in required if not path.exists()]
     if missing:
         st.error("Artefak pipeline belum lengkap:\n" + "\n".join(missing))
+        if not ARTIFACT_URL:
+            st.info(
+                "Local: jalankan pipeline. Cloud: set ARTIFACT_URL dan "
+                "ARTIFACT_SHA256 melalui Streamlit Secrets."
+            )
         st.stop()
 
     model, config = load_model_and_threshold()

@@ -1,5 +1,6 @@
 """Konfigurasi pusat agar nilai penting tidak tersebar di banyak file."""
 
+import os
 from pathlib import Path
 
 # Seed tunggal membuat data split dan training dapat direproduksi.
@@ -13,10 +14,13 @@ FEATURE_COLUMNS = ["Time", *[f"V{i}" for i in range(1, 29)], "Amount"]
 # terminal maupun notebook tanpa bergantung pada current working directory.
 PROJECT_ROOT = Path(__file__).resolve().parents[2]
 DEFAULT_DATA_PATH = PROJECT_ROOT / "Data" / "creditcard.csv"
-PROCESSED_DIR = PROJECT_ROOT / "data" / "processed"
-PREDICTIONS_DIR = PROJECT_ROOT / "data" / "predictions"
-MODELS_DIR = PROJECT_ROOT / "models"
-REPORTS_DIR = PROJECT_ROOT / "reports"
+# Deployment dapat mengarahkan generated artifacts ke storage runtime sementara.
+# Local development tetap memakai root repository ketika environment variable kosong.
+ARTIFACT_ROOT = Path(os.getenv("FRAUD_ARTIFACT_ROOT", str(PROJECT_ROOT))).resolve()
+PROCESSED_DIR = ARTIFACT_ROOT / "data" / "processed"
+PREDICTIONS_DIR = ARTIFACT_ROOT / "data" / "predictions"
+MODELS_DIR = ARTIFACT_ROOT / "models"
+REPORTS_DIR = ARTIFACT_ROOT / "reports"
 FIGURES_DIR = REPORTS_DIR / "figures"
 
 
