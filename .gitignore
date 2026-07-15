@@ -21,3 +21,4 @@ reports/figures/*.png
 reports/*.json
 reports/*.csv
 outputs/*
+.code-graph/
