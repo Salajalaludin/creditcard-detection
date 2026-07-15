@@ -164,7 +164,7 @@ Ubah asumsi di `BUSINESS_SCENARIOS` pada `scripts/optimize_threshold.py` atau `s
 └── README.md                 # setup, guide, laporan, executive summary
 ```
 
-Artefak utama: `models/fraud_detection_model.joblib`, `models/threshold_config.json`, `reports/active_policy_metadata.json`, `data/predictions/test_risk_scores.csv`, dan `data/predictions/investigation_queue.csv`. Generated data/model/report tidak disimpan ke Git; bangun ulang melalui pipeline.
+Artefak utama: `models/fraud_detection_model.joblib`, `models/threshold_config.json`, `reports/active_policy_metadata.json`, `data/predictions/test_risk_scores.csv`, `data/predictions/investigation_queue.csv`, dan `outputs/fraud_detection_executive_deck.pptx`. Generated data/model/report tidak disimpan ke Git; bangun ulang melalui pipeline.
 
 ## Executive summary dan rekomendasi
 

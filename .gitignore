@@ -18,3 +18,5 @@ models/*.joblib
 reports/figures/*.png
 reports/*.json
 reports/*.csv
+outputs/*
+!outputs/fraud_detection_executive_deck.pptx
